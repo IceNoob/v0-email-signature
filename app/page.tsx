@@ -1,11 +1,13 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ImageIcon } from "lucide-react"
+import { FileImage } from "lucide-react"
 
 export default function EmailSignatureGenerator() {
   const [name, setName] = useState("")
@@ -17,63 +19,58 @@ export default function EmailSignatureGenerator() {
 
   const signatureRef = useRef<HTMLDivElement>(null)
 
-  // PNG download function - EDIT THESE VALUES TO CONTROL PNG EXPORT
-  const downloadAsPNG = async () => {
+  const downloadAsJPG = async () => {
     if (!signatureRef.current) return
 
     setDownloading(true)
 
     try {
       const html2canvas = (await import("html2canvas")).default
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 2000))
 
       const canvas = await html2canvas(signatureRef.current, {
         backgroundColor: "#ffffff",
-        scale: 3, // High resolution for crisp quality
+        scale: 8,
         useCORS: true,
         allowTaint: true,
         logging: false,
+        pixelRatio: 8,
 
-        // *** EDIT THESE VALUES TO CONTROL PNG PADDING ***
-        x: 0, // LEFT PADDING: 0 = no left padding, -15 = add left padding
-        y: -10, // TOP PADDING: negative number adds padding above
-        width: signatureRef.current.scrollWidth + 15, // RIGHT PADDING: +15 adds right padding
-        height: signatureRef.current.scrollHeight + 20, // BOTTOM PADDING: +20 adds bottom padding
+        x: 0,
+        y: 4,
+        width: signatureRef.current.scrollWidth,
+        height: signatureRef.current.scrollHeight,
 
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.querySelector("[data-signature-ref]")
           if (clonedElement) {
             clonedElement.style.fontFamily = "'Host Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-
-            // *** EDIT THIS TO CONTROL LOGO SPACING IN PNG ***
-            const logoContainer = clonedElement.querySelector('div[style*="marginBottom"]')
-            if (logoContainer) {
-              logoContainer.style.marginBottom = "4px" // CHANGE THIS VALUE: smaller = less space
-            }
+            ;(clonedElement.style as any).WebkitFontSmoothing = "antialiased"
+            ;(clonedElement.style as any).MozOsxFontSmoothing = "grayscale"
+            clonedElement.style.textRendering = "optimizeLegibility"
           }
         },
       })
 
-      // Resize canvas to exactly 490px width while maintaining aspect ratio
-      const targetWidth = 490
-      const aspectRatio = canvas.height / canvas.width
-      const targetHeight = targetWidth * aspectRatio
+      const finalCanvas = document.createElement("canvas")
+      const ctx = finalCanvas.getContext("2d")
 
-      // Create a new canvas with the target dimensions
-      const resizedCanvas = document.createElement("canvas")
-      const ctx = resizedCanvas.getContext("2d")
-      resizedCanvas.width = targetWidth
-      resizedCanvas.height = targetHeight
+      if (ctx) {
+        finalCanvas.width = 510
+        finalCanvas.height = Math.round((canvas.height / canvas.width) * 510)
 
-      // Draw the high-resolution image onto the smaller canvas
-      ctx?.drawImage(canvas, 0, 0, targetWidth, targetHeight)
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = "high"
+
+        ctx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height)
+      }
 
       const link = document.createElement("a")
-      link.download = "email-signature.png"
-      link.href = resizedCanvas.toDataURL("image/png")
+      link.download = "email-signature.jpg"
+      link.href = finalCanvas.toDataURL("image/jpeg", 0.98)
       link.click()
     } catch (error) {
-      console.error("Error generating PNG:", error)
+      console.error("Error generating JPG:", error)
     } finally {
       setDownloading(false)
     }
@@ -111,9 +108,9 @@ export default function EmailSignatureGenerator() {
             </div>
           </CardContent>
           <CardFooter className="flex justify-center">
-            <Button onClick={downloadAsPNG} disabled={downloading} size="lg">
-              <ImageIcon className="mr-2 h-4 w-4" />
-              {downloading ? "Generating PNG..." : "Download as PNG"}
+            <Button onClick={downloadAsJPG} disabled={downloading} size="lg">
+              <FileImage className="mr-2 h-4 w-4" />
+              {downloading ? "Generating JPG..." : "Download as JPG"}
             </Button>
           </CardFooter>
         </Card>
@@ -128,12 +125,17 @@ export default function EmailSignatureGenerator() {
               <div
                 ref={signatureRef}
                 data-signature-ref="true"
-                style={{
-                  fontFamily: "'Host Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  width: "490px", // Updated to 490px
-                  backgroundColor: "white",
-                  padding: "5px",
-                }}
+                style={
+                  {
+                    fontFamily: "'Host Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    width: "510px",
+                    backgroundColor: "white",
+                    padding: "5px",
+                    WebkitFontSmoothing: "antialiased",
+                    MozOsxFontSmoothing: "grayscale",
+                    textRendering: "optimizeLegibility",
+                  } as React.CSSProperties
+                }
               >
                 {/* Blue Car Rental Header Image */}
                 <div style={{ marginBottom: "-3px" }}>
@@ -142,7 +144,7 @@ export default function EmailSignatureGenerator() {
                     alt="Blue Car Rental"
                     style={{
                       width: "100%",
-                      maxWidth: "490px", // Updated to 490px
+                      maxWidth: "510px",
                       height: "auto",
                       display: "block",
                     }}
@@ -161,7 +163,7 @@ export default function EmailSignatureGenerator() {
                   {/* Left Column - Name and Title */}
                   <div
                     style={{
-                      flex: "1",
+                      flex: "0.45", // Changed from "1" to "0.4"
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
@@ -194,7 +196,7 @@ export default function EmailSignatureGenerator() {
                   {/* Right Column - Contact Info */}
                   <div
                     style={{
-                      flex: "1",
+                      flex: "0.55", // Changed from "1" to "0.6"
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
@@ -203,7 +205,7 @@ export default function EmailSignatureGenerator() {
                   >
                     <div
                       style={{
-                        fontSize: "10px",
+                        fontSize: "11px", // Changed from "10px" to "12px"
                         fontWeight: "400",
                         color: "#1a365d",
                         lineHeight: "1.1",
@@ -214,7 +216,7 @@ export default function EmailSignatureGenerator() {
                     </div>
                     <div
                       style={{
-                        fontSize: "10px",
+                        fontSize: "11px", // Changed from "10px" to "12px"
                         fontWeight: "400",
                         color: "#1a365d",
                         lineHeight: "1.1",
@@ -225,7 +227,7 @@ export default function EmailSignatureGenerator() {
                     </div>
                     <div
                       style={{
-                        fontSize: "10px",
+                        fontSize: "11px", // Changed from "10px" to "12px"
                         fontWeight: "400",
                         color: "#1a365d",
                         lineHeight: "1.1",
@@ -238,23 +240,6 @@ export default function EmailSignatureGenerator() {
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="mt-4 text-sm text-muted-foreground">
-              <h3 className="font-medium mb-2">PNG Export Controls:</h3>
-              <ul className="list-disc pl-5 space-y-1 text-xs">
-                <li>
-                  <strong>Final width: 490px</strong> = Exact output size
-                </li>
-                <li>
-                  <strong>scale: 3</strong> = High resolution rendering for crisp quality
-                </li>
-                <li>
-                  <strong>x: 0</strong> = No left padding
-                </li>
-                <li>
-                  <strong>y: -10</strong> = Top padding
-                </li>
-              </ul>
             </div>
           </CardContent>
         </Card>
